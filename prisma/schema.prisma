@@ -1,0 +1,380 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// MTR-E1: Core Platform & Auth
+
+model Tenant {
+  id          String   @id @default(uuid())
+  name        String
+  slug        String   @unique
+  status      TenantStatus @default(ACTIVE)
+  metadata    Json?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  users       User[]
+  apiKeys     ApiKey[]
+  projects    Project[]
+  wallet      Wallet?
+  pricingPlans PricingPlan[]
+  auditLogs   AuditLog[]
+  ledgerEntries LedgerEntry[]
+
+  @@map("tenants")
+}
+
+enum TenantStatus {
+  ACTIVE
+  SUSPENDED
+  DELETED
+}
+
+model User {
+  id             String   @id @default(uuid())
+  tenantId       String
+  email          String
+  passwordHash   String
+  name           String
+  role           UserRole @default(MEMBER)
+  status         UserStatus @default(ACTIVE)
+  lastLoginAt    DateTime?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  tenant         Tenant @relation(fields: [tenantId], references: [id])
+  auditLogs      AuditLog[]
+
+  @@unique([tenantId, email])
+  @@map("users")
+}
+
+enum UserRole {
+  OWNER
+  ADMIN
+  MEMBER
+  VIEWER
+}
+
+enum UserStatus {
+  ACTIVE
+  PENDING
+  SUSPENDED
+  DELETED
+}
+
+model ApiKey {
+  id          String   @id @default(uuid())
+  tenantId    String
+  keyHash     String
+  keyPrefix   String
+  name        String
+  projectId   String?
+  status      ApiKeyStatus @default(ACTIVE)
+  lastUsedAt  DateTime?
+  expiresAt   DateTime?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  tenant      Tenant @relation(fields: [tenantId], references: [id])
+  project     Project? @relation(fields: [projectId], references: [id])
+
+  @@map("api_keys")
+}
+
+enum ApiKeyStatus {
+  ACTIVE
+  REVOKED
+  EXPIRED
+}
+
+model Project {
+  id          String   @id @default(uuid())
+  tenantId    String
+  name        String
+  description String?
+  status      ProjectStatus @default(ACTIVE)
+  metadata    Json?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  tenant      Tenant @relation(fields: [tenantId], references: [id])
+  apiKeys     ApiKey[]
+  usageEvents UsageEvent[]
+  ledgerEntries LedgerEntry[]
+
+  @@unique([tenantId, name])
+  @@map("projects")
+}
+
+enum ProjectStatus {
+  ACTIVE
+  ARCHIVED
+  DELETED
+}
+
+// MTR-E2: Usage Wallet Ledger
+
+model Wallet {
+  id          String   @id @default(uuid())
+  tenantId    String   @unique
+  balance     Decimal  @default(0) @db.Decimal(20, 8)
+  currency    String   @default("USD")
+  alertThreshold Decimal? @db.Decimal(20, 8)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  tenant      Tenant @relation(fields: [tenantId], references: [id])
+  transactions WalletTransaction[]
+
+  @@map("wallets")
+}
+
+model WalletTransaction {
+  id          String   @id @default(uuid())
+  walletId    String
+  type        TransactionType
+  amount      Decimal  @db.Decimal(20, 8)
+  balanceBefore Decimal @db.Decimal(20, 8)
+  balanceAfter  Decimal @db.Decimal(20, 8)
+  reference   String?
+  metadata    Json?
+  createdAt   DateTime @default(now())
+
+  wallet      Wallet @relation(fields: [walletId], references: [id])
+
+  @@map("wallet_transactions")
+}
+
+enum TransactionType {
+  CREDIT
+  DEBIT
+  REFUND
+  ADJUSTMENT
+}
+
+model UsageEvent {
+  id          String   @id @default(uuid())
+  projectId   String
+  eventName   String
+  properties  Json
+  quantity    Decimal  @db.Decimal(20, 8)
+  unit        String
+  timestamp   DateTime
+  idempotencyKey String? @unique
+  processedAt DateTime?
+  createdAt   DateTime @default(now())
+
+  project     Project @relation(fields: [projectId], references: [id])
+
+  @@index([projectId, timestamp])
+  @@map("usage_events")
+}
+
+model LedgerAccount {
+  id          String   @id @default(uuid())
+  tenantId    String
+  code        String
+  name        String
+  type        AccountType
+  createdAt   DateTime @default(now())
+
+  entries     LedgerEntry[]
+
+  @@unique([tenantId, code])
+  @@map("ledger_accounts")
+}
+
+enum AccountType {
+  ASSET
+  LIABILITY
+  EQUITY
+  REVENUE
+  EXPENSE
+}
+
+model LedgerEntry {
+  id              String   @id @default(uuid())
+  tenantId        String
+  projectId       String
+  accountId       String
+  entryType       EntryType
+  amount          Decimal  @db.Decimal(20, 8)
+  currency        String   @default("USD")
+  description     String?
+  reference       String
+  metadata        Json?
+  createdAt       DateTime @default(now())
+
+  tenant          Tenant @relation(fields: [tenantId], references: [id])
+  project         Project @relation(fields: [projectId], references: [id])
+  account         LedgerAccount @relation(fields: [accountId], references: [id])
+
+  @@index([tenantId, createdAt])
+  @@map("ledger_entries")
+}
+
+enum EntryType {
+  DEBIT
+  CREDIT
+}
+
+// MTR-E3: Rating Billing Invoicing
+
+model PricingPlan {
+  id          String   @id @default(uuid())
+  tenantId    String
+  name        String
+  description String?
+  status      PlanStatus @default(ACTIVE)
+  effectiveFrom DateTime?
+  effectiveTo   DateTime?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  tenant      Tenant @relation(fields: [tenantId], references: [id])
+  rules       PricingRule[]
+
+  @@unique([tenantId, name])
+  @@map("pricing_plans")
+}
+
+enum PlanStatus {
+  DRAFT
+  ACTIVE
+  ARCHIVED
+}
+
+model PricingRule {
+  id              String   @id @default(uuid())
+  planId          String
+  eventName       String
+  metric          String
+  pricingType     PricingType
+  tiers           Json?
+  flatRate        Decimal? @db.Decimal(20, 8)
+  unitPrice       Decimal? @db.Decimal(20, 8)
+  minQuantity     Decimal? @db.Decimal(20, 8)
+  maxQuantity     Decimal? @db.Decimal(20, 8)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  plan            PricingPlan @relation(fields: [planId], references: [id], onDelete: Cascade)
+
+  @@map("pricing_rules")
+}
+
+enum PricingType {
+  FLAT
+  PER_UNIT
+  TIERED
+  VOLUME
+}
+
+model Invoice {
+  id              String   @id @default(uuid())
+  tenantId        String
+  invoiceNumber   String   @unique
+  status          InvoiceStatus @default(DRAFT)
+  periodStart     DateTime
+  periodEnd       DateTime
+  subtotal        Decimal  @db.Decimal(20, 2)
+  tax             Decimal  @default(0) @db.Decimal(20, 2)
+  total           Decimal  @db.Decimal(20, 2)
+  currency        String   @default("USD")
+  pdfUrl          String?
+  dueDate         DateTime
+  paidAt          DateTime?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  lineItems       InvoiceLineItem[]
+
+  @@index([tenantId, status])
+  @@map("invoices")
+}
+
+enum InvoiceStatus {
+  DRAFT
+  PENDING
+  SENT
+  PAID
+  OVERDUE
+  CANCELLED
+}
+
+model InvoiceLineItem {
+  id          String   @id @default(uuid())
+  invoiceId   String
+  description String
+  quantity    Decimal  @db.Decimal(20, 8)
+  unitPrice   Decimal  @db.Decimal(20, 2)
+  amount      Decimal  @db.Decimal(20, 2)
+  metadata    Json?
+
+  invoice     Invoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+
+  @@map("invoice_line_items")
+}
+
+// MTR-E4: Portal MultiTenant Security
+
+model AuditLog {
+  id          String   @id @default(uuid())
+  tenantId    String
+  userId      String?
+  action      String
+  resource    String
+  resourceId  String?
+  changes     Json?
+  ipAddress   String?
+  userAgent   String?
+  createdAt   DateTime @default(now())
+
+  tenant      Tenant @relation(fields: [tenantId], references: [id])
+  user        User? @relation(fields: [userId], references: [id])
+
+  @@index([tenantId, createdAt])
+  @@index([resource, resourceId])
+  @@map("audit_logs")
+}
+
+model Role {
+  id          String   @id @default(uuid())
+  name        String   @unique
+  permissions Json
+  createdAt   DateTime @default(now())
+
+  rolePermissions RolePermission[]
+
+  @@map("roles")
+}
+
+model RolePermission {
+  id          String   @id @default(uuid())
+  roleId      String
+  permission  String
+  resource    String
+  actions     String[]
+
+  role        Role @relation(fields: [roleId], references: [id], onDelete: Cascade)
+
+  @@unique([roleId, permission, resource])
+  @@map("role_permissions")
+}
+
+model BudgetAlert {
+  id          String   @id @default(uuid())
+  tenantId    String
+  threshold   Decimal  @db.Decimal(20, 8)
+  notifiedAt  DateTime?
+  createdAt   DateTime @default(now())
+
+  @@index([tenantId])
+  @@map("budget_alerts")
+}
