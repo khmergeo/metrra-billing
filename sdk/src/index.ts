@@ -39,7 +39,7 @@ export class Meterra {
     }
 
     this.apiKey = config.apiKey;
-    this.baseUrl = config.baseUrl || "https://api.metrra.io";
+    this.baseUrl = config.baseUrl || "https://api.meterra.io";
     this.timeout = config.timeout || 30000;
   }
 
@@ -146,12 +146,12 @@ export function init(options: InitOptions): Meterra {
 
 export function getInstance(): Meterra {
   if (!instance) {
-    throw new MeterraError("Meterra not initialized. Call metrra.init() first.");
+    throw new MeterraError("Meterra not initialized. Call meterra.init() first.");
   }
   return instance;
 }
 
-export const metrra = {
+export const meterra = {
   init,
   getInstance,
   recordUsage: (event: UsageEventInput) => getInstance().recordUsage(event),
@@ -159,4 +159,4 @@ export const metrra = {
     getInstance().recordBatchUsage(events),
 };
 
-export default metrra;
+export default meterra;

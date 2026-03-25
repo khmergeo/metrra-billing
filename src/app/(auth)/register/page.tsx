@@ -100,7 +100,7 @@ export default function RegisterPage() {
               Workspace URL
             </label>
             <div className="flex items-center">
-              <span className="text-slate-400 text-sm pr-2">metrra.io/</span>
+              <span className="text-slate-400 text-sm pr-2">meterra.io/</span>
               <input
                 type="text"
                 id="slug"

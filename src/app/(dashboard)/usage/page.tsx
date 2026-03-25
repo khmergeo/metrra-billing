@@ -119,13 +119,13 @@ export default function UsagePage() {
           To record usage events, integrate the Meterra SDK into your application:
         </p>
         <div className="bg-slate-900 rounded-lg p-4 font-mono text-sm overflow-x-auto">
-          <code className="text-green-400">npm install @metrra/sdk</code>
+          <code className="text-green-400">npm install @meterra/sdk</code>
         </div>
         <div className="bg-slate-900 rounded-lg p-4 font-mono text-sm overflow-x-auto mt-3">
           <pre className="text-slate-300">
-{`import { metrra } from '@metrra/sdk';
+{`import { meterra } from '@meterra/sdk';
 
-await metrra.recordUsage({
+await meterra.recordUsage({
   eventName: 'api_call',
   quantity: 1,
   unit: 'request',

@@ -5,7 +5,7 @@ A comprehensive usage-based billing system built with Next.js 14, Prisma, and Po
 ## Architecture
 
 ```
-metrra-billing/
+meterra-billing/
 ├── prisma/
 │   └── schema.prisma       # Database schema
 ├── sdk/
@@ -143,18 +143,18 @@ The system uses PostgreSQL with the following main tables:
 
 Install the SDK:
 ```bash
-npm install @metrra/sdk
+npm install @meterra/sdk
 ```
 
 Initialize and use:
 ```typescript
-import { metrra } from '@metrra/sdk';
+import { meterra } from '@meterra/sdk';
 
-metrra.init({
-  apiKey: process.env.METRRA_API_KEY!,
+meterra.init({
+  apiKey: process.env.METERRA_API_KEY!,
 });
 
-await metrra.recordUsage({
+await meterra.recordUsage({
   eventName: 'api_call',
   quantity: 1,
   unit: 'request',
