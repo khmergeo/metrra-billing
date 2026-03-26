@@ -10,10 +10,14 @@ meterra-billing/
 │   └── schema.prisma       # Database schema
 ├── sdk/
 │   └── src/index.ts        # Node.js SDK for usage tracking
+├── scripts/
+│   └── create-admin.ts     # Admin account creation script
 ├── src/
 │   ├── app/
 │   │   ├── (auth)/         # Authentication pages
-│   │   ├── (dashboard)/    # Dashboard pages
+│   │   ├── (dashboard)/     # Client dashboard pages
+│   │   ├── admin/          # Admin portal (public)
+│   │   ├── (admin)/        # Admin portal (protected)
 │   │   ├── api/            # API routes
 │   │   └── page.tsx        # Landing page
 │   ├── lib/
@@ -52,6 +56,29 @@ meterra-billing/
 - Audit logging
 - Tenant isolation middleware
 
+## Portals
+
+### Client Portal
+Manage your own tenant's billing, projects, and usage.
+
+**URL:** `http://localhost:3000`
+
+### Admin Portal
+Platform-wide administration and management.
+
+**URL:** `http://localhost:3000/admin/login`
+
+**Features:**
+- Dashboard - Platform overview with stats
+- Tenants - Manage all platform tenants
+- Users - Manage all platform users
+- Wallets & Ledger - View all wallets and ledger entries
+- System Usage - Usage analytics and trends
+- Plans & Rating - Manage pricing plans and rules
+- Invoices - View all platform invoices
+- Audit Logs - Activity tracking
+- Security & RBAC - Role permissions management
+
 ## Getting Started
 
 ### Prerequisites
@@ -79,10 +106,23 @@ npm run db:push
 npm run db:generate
 ```
 
-4. Start the development server:
+4. Create admin account:
+```bash
+npm run db:create-admin
+```
+
+5. Start the development server:
 ```bash
 npm run dev
 ```
+
+### Default Admin Credentials
+
+After running `npm run db:create-admin`:
+
+- **Email:** `admin@meterra.io`
+- **Password:** `admin123`
+- **Portal:** `http://localhost:3000/admin/login`
 
 ### Database Schema
 
@@ -104,14 +144,32 @@ The system uses PostgreSQL with the following main tables:
 
 ## API Routes
 
-### Authentication
+### Client Authentication
 - `POST /api/auth/login` - User login
 - `DELETE /api/auth/login` - User logout
 - `GET /api/auth/session` - Get current session
 
+### Admin Authentication
+- `POST /api/admin/auth/login` - Admin login
+- `POST /api/admin/auth/logout` - Admin logout
+- `GET /api/admin/auth/session` - Get admin session
+
 ### Tenant Management
 - `POST /api/tenants` - Create tenant
 - `GET /api/tenants` - List tenants (admin)
+
+### Admin Management
+- `GET /api/admin/tenants` - List all tenants
+- `PATCH /api/admin/tenants/[id]` - Update tenant
+- `GET /api/admin/users` - List all users
+- `PATCH /api/admin/users/[id]` - Update user
+- `GET /api/admin/stats` - Platform statistics
+- `GET /api/admin/wallets` - All wallets & ledger
+- `GET /api/admin/usage` - System usage analytics
+- `GET /api/admin/plans` - All pricing plans
+- `GET /api/admin/invoices` - All invoices
+- `GET /api/admin/audit` - Audit logs
+- `GET /api/admin/security` - RBAC & security
 
 ### Projects & API Keys
 - `GET/POST /api/projects` - List/create projects
@@ -190,6 +248,9 @@ npm run dev          # Start dev server
 npm run build        # Build for production
 npm run lint         # Run ESLint
 npm run db:studio    # Open Prisma Studio
+npm run db:push      # Push schema to database
+npm run db:generate  # Generate Prisma client
+npm run db:create-admin  # Create admin account
 npm run test         # Run tests
 ```
 
