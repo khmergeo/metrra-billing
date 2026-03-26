@@ -31,7 +31,7 @@ export async function deductWallet(
         balanceBefore: wallet.balance,
         balanceAfter: newBalance,
         reference,
-        metadata,
+        metadata: metadata ? JSON.parse(JSON.stringify(metadata)) : undefined,
       },
     });
 
@@ -70,7 +70,7 @@ export async function creditWallet(
         balanceBefore: wallet.balance,
         balanceAfter: newBalance,
         reference,
-        metadata,
+        metadata: metadata ? JSON.parse(JSON.stringify(metadata)) : undefined,
       },
     });
 

@@ -34,7 +34,7 @@ export async function POST(
         data: {
           projectId: ctx.projectId || "",
           eventName: data.eventName,
-          properties: data.properties || {},
+          properties: JSON.parse(JSON.stringify(data.properties || {})),
           quantity: data.quantity,
           unit: data.unit,
           timestamp: new Date(data.timestamp),

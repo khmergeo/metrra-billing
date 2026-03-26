@@ -81,7 +81,6 @@ export default function UsagePage() {
         ) : events.length === 0 ? (
           <div className="p-8 text-center text-slate-400">
             <Activity className="w-12 h-12 mx-auto mb-4 opacity-50" />
->
             <p>No usage events recorded yet.</p>
             <p className="text-sm mt-2">Use the SDK to start tracking usage.</p>
           </div>
