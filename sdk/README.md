@@ -5,22 +5,22 @@ Node.js SDK for usage tracking with Meterra billing platform.
 ## Installation
 
 ```bash
-npm install @metrra/sdk
+npm install @meterra/sdk
 ```
 
 ## Quick Start
 
 ```typescript
-import { metrra } from '@metrra/sdk';
+import { meterra } from '@meterra/sdk';
 
 // Initialize with your API key
-metrra.init({
+meterra.init({
   apiKey: 'mtr_your_api_key_here',
-  baseUrl: 'https://api.metrra.io', // Optional, defaults to production
+  baseUrl: 'https://api.meterra.io', // Optional, defaults to production
 });
 
 // Record a usage event
-await metrra.recordUsage({
+await meterra.recordUsage({
   eventName: 'api_call',
   quantity: 1,
   unit: 'request',
@@ -28,7 +28,7 @@ await metrra.recordUsage({
 });
 
 // With properties
-await metrra.recordUsage({
+await meterra.recordUsage({
   eventName: 'video_processed',
   quantity: 120,
   unit: 'seconds',
@@ -42,7 +42,7 @@ await metrra.recordUsage({
 
 ## API
 
-### `metrra.init(options)`
+### `meterra.init(options)`
 
 Initialize the Meterra SDK.
 
@@ -50,12 +50,12 @@ Initialize the Meterra SDK.
 - `options.baseUrl` (optional): API base URL
 - `options.timeout` (optional): Request timeout in ms (default: 30000)
 
-### `metrra.recordUsage(event)`
+### `meterra.recordUsage(event)`
 
 Record a single usage event.
 
 ```typescript
-await metrra.recordUsage({
+await meterra.recordUsage({
   eventName: 'function_execution',
   quantity: 1,
   unit: 'call',
@@ -68,12 +68,12 @@ await metrra.recordUsage({
 });
 ```
 
-### `metrra.recordBatchUsage(events)`
+### `meterra.recordBatchUsage(events)`
 
 Record multiple usage events.
 
 ```typescript
-const results = await metrra.recordBatchUsage([
+const results = await meterra.recordBatchUsage([
   { eventName: 'email_sent', quantity: 1, unit: 'email', timestamp: new Date() },
   { eventName: 'sms_sent', quantity: 1, unit: 'sms', timestamp: new Date() },
 ]);
@@ -84,13 +84,13 @@ const results = await metrra.recordBatchUsage([
 ### Serverless Functions (AWS Lambda)
 
 ```typescript
-import { metrra } from '@metrra/sdk';
+import { meterra } from '@meterra/sdk';
 
-metrra.init({ apiKey: process.env.METRRA_API_KEY! });
+meterra.init({ apiKey: process.env.METRRA_API_KEY! });
 
 export const handler = async (event: APIGatewayEvent) => {
   // Process request
-  await metrra.recordUsage({
+  await meterra.recordUsage({
     eventName: 'api_request',
     quantity: 1,
     unit: 'request',
@@ -109,9 +109,9 @@ export const handler = async (event: APIGatewayEvent) => {
 
 ```typescript
 import express from 'express';
-import { metrra } from '@metrra/sdk';
+import { meterra } from '@meterra/sdk';
 
-metrra.init({ apiKey: process.env.METRRA_API_KEY! });
+meterra.init({ apiKey: process.env.METRRA_API_KEY! });
 
 const app = express();
 
@@ -119,7 +119,7 @@ app.use((req, res, next) => {
   const start = Date.now();
   
   res.on('finish', () => {
-    metrra.recordUsage({
+    meterra.recordUsage({
       eventName: 'http_request',
       quantity: 1,
       unit: 'request',
@@ -140,12 +140,12 @@ app.use((req, res, next) => {
 ### Cron Jobs
 
 ```typescript
-import { metrra } from '@metrra/sdk';
+import { meterra } from '@meterra/sdk';
 
-metrra.init({ apiKey: process.env.METRRA_API_KEY! });
+meterra.init({ apiKey: process.env.METRRA_API_KEY! });
 
 // Record compute time
-await metrra.recordUsage({
+await meterra.recordUsage({
   eventName: 'background_job',
   quantity: 5.5,
   unit: 'minutes',
@@ -160,12 +160,12 @@ await metrra.recordUsage({
 ## Error Handling
 
 ```typescript
-import { metrra, MeterraError } from '@metrra/sdk';
+import { meterra, MeterraError } from '@meterra/sdk';
 
-metrra.init({ apiKey: process.env.METRRA_API_KEY! });
+meterra.init({ apiKey: process.env.METRRA_API_KEY! });
 
 try {
-  await metrra.recordUsage({
+  await meterra.recordUsage({
     eventName: 'test',
     quantity: 1,
     unit: 'unit',

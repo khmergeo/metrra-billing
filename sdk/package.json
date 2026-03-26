@@ -1,5 +1,5 @@
 {
-  "name": "@metrra/sdk",
+  "name": "@meterra/sdk",
   "version": "1.0.0",
   "description": "Meterra Usage Tracking SDK",
   "main": "dist/index.js",

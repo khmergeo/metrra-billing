@@ -82,8 +82,12 @@ export default function HomePage() {
       </main>
 
       <footer className="py-8 px-4 border-t border-white/10">
-        <div className="max-w-6xl mx-auto text-center text-slate-500">
-          <p>© 2024 Meterra. Built for developers.</p>
+        <div className="max-w-6xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4">
+          <p className="text-slate-500">© 2024 Meterra. Built for developers.</p>
+          <div className="flex items-center gap-6 text-sm text-slate-500">
+            <Link href="/login">Client Portal</Link>
+            <Link href="/admin/login">Admin Portal</Link>
+          </div>
         </div>
       </footer>
     </div>

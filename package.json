@@ -1,5 +1,5 @@
 {
-  "name": "metrra-billing",
+  "name": "meterra-billing",
   "version": "1.0.0",
   "private": true,
   "scripts": {
@@ -11,6 +11,7 @@
     "db:migrate": "prisma migrate dev",
     "db:push": "prisma db push",
     "db:studio": "prisma studio",
+    "db:create-admin": "npx tsx scripts/create-admin.ts",
     "test": "jest",
     "test:e2e": "playwright test"
   },

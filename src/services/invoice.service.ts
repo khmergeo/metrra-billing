@@ -71,8 +71,10 @@ export async function generateInvoicePdf(invoiceId: string): Promise<Buffer> {
 
   const invoice = await prisma.invoice.findUnique({
     where: { id: invoiceId },
-    include: { lineItems: true, tenant: true },
+    include: { lineItems: true },
   });
+
+  const tenant = invoice ? await prisma.tenant.findUnique({ where: { id: invoice.tenantId } }) : null;
 
   if (!invoice) {
     throw new Error("Invoice not found");
@@ -126,7 +128,7 @@ export async function generateInvoicePdf(invoiceId: string): Promise<Buffer> {
   });
 
   y -= 15;
-  page.drawText(invoice.tenant.name, {
+  page.drawText(tenant?.name || "Unknown Tenant", {
     x: 50,
     y,
     size: 10,

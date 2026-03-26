@@ -81,7 +81,6 @@ export default function UsagePage() {
         ) : events.length === 0 ? (
           <div className="p-8 text-center text-slate-400">
             <Activity className="w-12 h-12 mx-auto mb-4 opacity-50" />
->
             <p>No usage events recorded yet.</p>
             <p className="text-sm mt-2">Use the SDK to start tracking usage.</p>
           </div>
@@ -119,13 +118,13 @@ export default function UsagePage() {
           To record usage events, integrate the Meterra SDK into your application:
         </p>
         <div className="bg-slate-900 rounded-lg p-4 font-mono text-sm overflow-x-auto">
-          <code className="text-green-400">npm install @metrra/sdk</code>
+          <code className="text-green-400">npm install @meterra/sdk</code>
         </div>
         <div className="bg-slate-900 rounded-lg p-4 font-mono text-sm overflow-x-auto mt-3">
           <pre className="text-slate-300">
-{`import { metrra } from '@metrra/sdk';
+{`import { meterra } from '@meterra/sdk';
 
-await metrra.recordUsage({
+await meterra.recordUsage({
   eventName: 'api_call',
   quantity: 1,
   unit: 'request',

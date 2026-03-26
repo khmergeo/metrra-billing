@@ -111,7 +111,14 @@ export async function addPricingRule(
   return prisma.pricingRule.create({
     data: {
       planId,
-      ...data,
+      eventName: data.eventName,
+      metric: data.metric,
+      pricingType: data.pricingType,
+      flatRate: data.flatRate,
+      unitPrice: data.unitPrice,
+      tiers: data.tiers ? JSON.parse(JSON.stringify(data.tiers)) : undefined,
+      minQuantity: data.minQuantity,
+      maxQuantity: data.maxQuantity,
     },
   });
 }
