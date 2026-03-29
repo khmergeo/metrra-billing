@@ -4,7 +4,8 @@ import prisma from "@/lib/db";
 
 export async function withAuth(
   request: Request,
-  handler: (req: Request, context: { userId: string; tenantId: string }) => Promise<NextResponse>
+  handler: (req: Request, context: { userId: string; tenantId: string; params?: Record<string, string> }) => Promise<NextResponse>,
+  params?: Record<string, string>
 ): Promise<NextResponse> {
   const auth = await getAuthFromRequest(request as unknown as NextRequest);
   
@@ -15,6 +16,7 @@ export async function withAuth(
   return handler(request, {
     userId: auth.userId,
     tenantId: auth.tenantId,
+    params,
   });
 }
 

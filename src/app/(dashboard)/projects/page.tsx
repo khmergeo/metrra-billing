@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Plus, Key, MoreHorizontal, Trash2, Eye } from "lucide-react";
+import { Plus, Key, MoreHorizontal, Trash2, Eye, Copy, Check } from "lucide-react";
 
 interface Project {
   id: string;
@@ -28,6 +28,39 @@ export default function ProjectsPage() {
   const [showNewProject, setShowNewProject] = useState(false);
   const [showNewKey, setShowNewKey] = useState(false);
   const [newKey, setNewKey] = useState<string | null>(null);
+  const [newKeyName, setNewKeyName] = useState("");
+  const [copied, setCopied] = useState(false);
+  const [deleteConfirmKeyId, setDeleteConfirmKeyId] = useState<string | null>(null);
+
+  async function copyToClipboard(text: string) {
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch (err) {
+      console.error("Failed to copy:", err);
+    }
+  }
+
+  function deleteApiKey(keyId: string) {
+    setDeleteConfirmKeyId(keyId);
+  }
+
+  function confirmDelete() {
+    if (!deleteConfirmKeyId) return;
+    fetch(`/api/api-keys?id=${deleteConfirmKeyId}`, { method: "DELETE" })
+      .then((res) => {
+        if (res.ok) {
+          fetchData();
+        }
+      })
+      .catch((error) => {
+        console.error("Delete API key error:", error);
+      })
+      .finally(() => {
+        setDeleteConfirmKeyId(null);
+      });
+  }
 
   useEffect(() => {
     fetchData();
@@ -93,6 +126,8 @@ export default function ProjectsPage() {
 
       if (res.ok) {
         setNewKey(data.apiKey.key);
+        setNewKeyName("");
+        setShowNewKey(false);
         fetchData();
       }
     } catch (error) {
@@ -164,8 +199,26 @@ export default function ProjectsPage() {
               <p className="text-sm text-slate-400 mt-1">
                 Copy this key now. You won&apos;t be able to see it again.
               </p>
-              <div className="mt-3 p-3 bg-slate-900 rounded-lg font-mono text-sm break-all">
-                {newKey}
+              <div className="mt-3 flex items-center gap-2">
+                <div className="flex-1 p-3 bg-slate-900 rounded-lg font-mono text-sm break-all">
+                  {newKey}
+                </div>
+                <button
+                  onClick={() => copyToClipboard(newKey)}
+                  className="btn-secondary flex items-center gap-2 shrink-0"
+                >
+                  {copied ? (
+                    <>
+                      <Check className="w-4 h-4 text-green-400" />
+                      Copied!
+                    </>
+                  ) : (
+                    <>
+                      <Copy className="w-4 h-4" />
+                      Copy
+                    </>
+                  )}
+                </button>
               </div>
               <button
                 onClick={() => setNewKey(null)}
@@ -229,6 +282,8 @@ export default function ProjectsPage() {
                 <input
                   type="text"
                   name="name"
+                  value={newKeyName}
+                  onChange={(e) => setNewKeyName(e.target.value)}
                   required
                   className="input-field w-full"
                   placeholder="Production API Key"
@@ -240,7 +295,10 @@ export default function ProjectsPage() {
                 </button>
                 <button
                   type="button"
-                  onClick={() => setShowNewKey(false)}
+                  onClick={() => {
+                    setShowNewKey(false);
+                    setNewKeyName("");
+                  }}
                   className="btn-secondary"
                 >
                   Cancel
@@ -272,12 +330,44 @@ export default function ProjectsPage() {
                   }`}>
                     {key.status}
                   </span>
+                  <button
+                    onClick={() => deleteApiKey(key.id)}
+                    className="p-1.5 text-slate-400 hover:text-red-400 hover:bg-red-500/10 rounded transition-colors"
+                    title="Delete API Key"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
                 </div>
               </div>
             ))}
           </div>
         )}
       </div>
+
+      {deleteConfirmKeyId && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
+          <div className="glass-card w-full max-w-md p-6">
+            <h2 className="text-lg font-semibold mb-2">Delete API Key?</h2>
+            <p className="text-slate-400 mb-6">
+              Are you sure you want to delete this API key? This action cannot be undone.
+            </p>
+            <div className="flex justify-end gap-3">
+              <button
+                onClick={() => setDeleteConfirmKeyId(null)}
+                className="btn-secondary"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={confirmDelete}
+                className="px-4 py-2 bg-red-500/20 text-red-400 hover:bg-red-500/30 rounded-lg transition-colors"
+              >
+                Delete
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

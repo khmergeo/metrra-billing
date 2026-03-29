@@ -6,6 +6,26 @@ import { withAuth } from "@/lib/middleware";
 import { hashApiKey, generateApiKey } from "@/lib/auth";
 import { ApiKeySchema } from "@/lib/validators";
 
+export async function DELETE(
+  request: Request,
+  context: { tenantId: string }
+) {
+  return withAuth(request as unknown as NextRequest, async (req, ctx) => {
+    const { searchParams } = new URL(req.url);
+    const keyId = searchParams.get("id");
+
+    if (!keyId) {
+      return NextResponse.json({ error: "Key ID required" }, { status: 400 });
+    }
+
+    await prisma.apiKey.deleteMany({
+      where: { id: keyId, tenantId: ctx.tenantId },
+    });
+
+    return NextResponse.json({ success: true });
+  });
+}
+
 export async function GET(
   request: Request,
   context: { tenantId: string }

@@ -31,6 +31,14 @@ interface Pagination {
   totalPages: number;
 }
 
+interface CreateTenantForm {
+  name: string;
+  slug: string;
+  adminEmail: string;
+  adminName: string;
+  adminPassword: string;
+}
+
 export default function AdminTenantsPage() {
   const [tenants, setTenants] = useState<Tenant[]>([]);
   const [pagination, setPagination] = useState<Pagination>({
@@ -44,6 +52,15 @@ export default function AdminTenantsPage() {
   const [statusFilter, setStatusFilter] = useState("ALL");
   const [showNewTenant, setShowNewTenant] = useState(false);
   const [selectedTenant, setSelectedTenant] = useState<Tenant | null>(null);
+  const [createForm, setCreateForm] = useState<CreateTenantForm>({
+    name: "",
+    slug: "",
+    adminEmail: "",
+    adminName: "",
+    adminPassword: "",
+  });
+  const [isCreating, setIsCreating] = useState(false);
+  const [createError, setCreateError] = useState("");
 
   useEffect(() => {
     fetchTenants();
@@ -91,6 +108,54 @@ export default function AdminTenantsPage() {
     e.preventDefault();
     setPagination(p => ({ ...p, page: 1 }));
     fetchTenants();
+  }
+
+  function generateSlug(name: string) {
+    return name
+      .toLowerCase()
+      .replace(/[^a-z0-9\s-]/g, "")
+      .replace(/\s+/g, "-")
+      .replace(/-+/g, "-")
+      .trim();
+  }
+
+  function handleNameChange(name: string) {
+    setCreateForm(f => ({ ...f, name, slug: generateSlug(name) }));
+  }
+
+  async function handleCreateTenant(e: React.FormEvent) {
+    e.preventDefault();
+    setIsCreating(true);
+    setCreateError("");
+
+    try {
+      const res = await fetch("/api/admin/tenants", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(createForm),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        setCreateError(data.error || "Failed to create tenant");
+        return;
+      }
+
+      setShowNewTenant(false);
+      setCreateForm({
+        name: "",
+        slug: "",
+        adminEmail: "",
+        adminName: "",
+        adminPassword: "",
+      });
+      fetchTenants();
+    } catch (error) {
+      setCreateError("An unexpected error occurred");
+    } finally {
+      setIsCreating(false);
+    }
   }
 
   return (
@@ -300,6 +365,104 @@ export default function AdminTenantsPage() {
                 Close
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {showNewTenant && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
+          <div className="glass-card w-full max-w-lg p-6">
+            <h2 className="text-lg font-semibold mb-4">Create New Tenant</h2>
+            <form onSubmit={handleCreateTenant} className="space-y-4">
+              <div>
+                <label className="block text-sm text-slate-400 mb-1">Tenant Name</label>
+                <input
+                  type="text"
+                  value={createForm.name}
+                  onChange={(e) => handleNameChange(e.target.value)}
+                  placeholder="Acme Corporation"
+                  className="input-field w-full"
+                  required
+                />
+              </div>
+              <div>
+                <label className="block text-sm text-slate-400 mb-1">Slug</label>
+                <input
+                  type="text"
+                  value={createForm.slug}
+                  onChange={(e) => setCreateForm(f => ({ ...f, slug: e.target.value }))}
+                  placeholder="acme-corp"
+                  pattern="^[a-z0-9-]+$"
+                  className="input-field w-full"
+                  required
+                />
+                <p className="text-xs text-slate-500 mt-1">Lowercase letters, numbers, and hyphens only</p>
+              </div>
+              <div className="border-t border-white/10 pt-4">
+                <p className="text-sm font-medium text-slate-300 mb-3">Admin User</p>
+                <div className="space-y-3">
+                  <div>
+                    <label className="block text-sm text-slate-400 mb-1">Admin Name</label>
+                    <input
+                      type="text"
+                      value={createForm.adminName}
+                      onChange={(e) => setCreateForm(f => ({ ...f, adminName: e.target.value }))}
+                      placeholder="John Doe"
+                      className="input-field w-full"
+                      required
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm text-slate-400 mb-1">Admin Email</label>
+                    <input
+                      type="email"
+                      value={createForm.adminEmail}
+                      onChange={(e) => setCreateForm(f => ({ ...f, adminEmail: e.target.value }))}
+                      placeholder="admin@acme.com"
+                      className="input-field w-full"
+                      required
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm text-slate-400 mb-1">Admin Password</label>
+                    <input
+                      type="password"
+                      value={createForm.adminPassword}
+                      onChange={(e) => setCreateForm(f => ({ ...f, adminPassword: e.target.value }))}
+                      placeholder="Min. 8 characters"
+                      minLength={8}
+                      className="input-field w-full"
+                      required
+                    />
+                  </div>
+                </div>
+              </div>
+              {createError && (
+                <div className="p-3 bg-red-500/20 border border-red-500/50 rounded-lg text-red-400 text-sm">
+                  {createError}
+                </div>
+              )}
+              <div className="flex justify-end gap-3 pt-4">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowNewTenant(false);
+                    setCreateError("");
+                  }}
+                  className="btn-secondary"
+                  disabled={isCreating}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="btn-primary"
+                  disabled={isCreating}
+                >
+                  {isCreating ? "Creating..." : "Create Tenant"}
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}

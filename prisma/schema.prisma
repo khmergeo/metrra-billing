@@ -25,6 +25,10 @@ model Tenant {
   pricingPlans PricingPlan[]
   auditLogs   AuditLog[]
   ledgerEntries LedgerEntry[]
+  customers   Customer[]
+  invoices    Invoice[]
+  payments    Payment[]
+  products    Product[]
 
   @@map("tenants")
 }
@@ -107,6 +111,7 @@ model Project {
   apiKeys     ApiKey[]
   usageEvents UsageEvent[]
   ledgerEntries LedgerEntry[]
+  pricingRules PricingRule[]
 
   @@unique([tenantId, name])
   @@map("projects")
@@ -135,10 +140,209 @@ model Wallet {
   @@map("wallets")
 }
 
+// MTR-E5: Customer Billing Layer
+
+model Customer {
+  id                  String   @id @default(uuid())
+  tenantId            String
+  externalCustomerId  String?
+  name                String
+  email               String
+  phone               String?
+  address             Json?
+  billingType         BillingType @default(POSTPAID)
+  status              CustomerStatus @default(ACTIVE)
+  metadata            Json?
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  tenant              Tenant @relation(fields: [tenantId], references: [id])
+  wallet              CustomerWallet?
+  subscriptions       Subscription[]
+  usageEvents         UsageEvent[]
+  invoices            Invoice[]
+  payments            Payment[]
+  pricingOverrides    CustomerPricingOverride[]
+
+  @@unique([tenantId, email])
+  @@index([tenantId])
+  @@map("customers")
+}
+
+enum BillingType {
+  PREPAID
+  POSTPAID
+}
+
+enum CustomerStatus {
+  ACTIVE
+  SUSPENDED
+  CHURNED
+}
+
+model CustomerWallet {
+  id          String   @id @default(uuid())
+  customerId  String   @unique
+  tenantId    String
+  balance     Decimal  @default(0) @db.Decimal(20, 8)
+  currency    String   @default("USD")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  customer    Customer @relation(fields: [customerId], references: [id])
+  transactions CustomerWalletTransaction[]
+
+  @@map("customer_wallets")
+}
+
+model CustomerWalletTransaction {
+  id              String   @id @default(uuid())
+  walletId        String
+  type            WalletTransactionType
+  amount          Decimal  @db.Decimal(20, 8)
+  balanceBefore   Decimal  @db.Decimal(20, 8)
+  balanceAfter    Decimal  @db.Decimal(20, 8)
+  reference       String?
+  description     String?
+  createdAt       DateTime @default(now())
+
+  wallet          CustomerWallet @relation(fields: [walletId], references: [id])
+
+  @@map("customer_wallet_transactions")
+}
+
+enum WalletTransactionType {
+  CREDIT
+  DEBIT
+  REFUND
+  ADJUSTMENT
+  TOP_UP
+  CHARGE
+}
+
+model Product {
+  id          String   @id @default(uuid())
+  tenantId    String
+  name        String
+  description String?
+  unit        String   @default("unit")
+  status      ProductStatus @default(ACTIVE)
+  metadata    Json?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  tenant      Tenant @relation(fields: [tenantId], references: [id])
+  pricingRules PricingRule[]
+
+  @@unique([tenantId, name])
+  @@map("products")
+}
+
+enum ProductStatus {
+  ACTIVE
+  ARCHIVED
+}
+
+model Subscription {
+  id              String   @id @default(uuid())
+  customerId      String
+  tenantId        String
+  pricingPlanId   String
+  status          SubscriptionStatus @default(ACTIVE)
+  billingCycle    BillingCycle @default(MONTHLY)
+  startDate       DateTime
+  endDate         DateTime?
+  currentPeriodStart DateTime
+  currentPeriodEnd   DateTime
+  cancelledAt     DateTime?
+  metadata        Json?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  customer        Customer @relation(fields: [customerId], references: [id])
+
+  @@index([customerId])
+  @@index([tenantId])
+  @@map("subscriptions")
+}
+
+enum SubscriptionStatus {
+  ACTIVE
+  PAUSED
+  CANCELLED
+  EXPIRED
+  PAST_DUE
+}
+
+enum BillingCycle {
+  MONTHLY
+  YEARLY
+  QUARTERLY
+  PAY_AS_YOU_GO
+}
+
+model CustomerPricingOverride {
+  id              String   @id @default(uuid())
+  customerId      String
+  serviceName     String
+  customPrice     Decimal  @db.Decimal(20, 8)
+  customUnit      String?
+  effectiveFrom   DateTime?
+  effectiveTo     DateTime?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  customer        Customer @relation(fields: [customerId], references: [id])
+
+  @@unique([customerId, serviceName])
+  @@map("customer_pricing_overrides")
+}
+
+model Payment {
+  id              String   @id @default(uuid())
+  tenantId        String
+  customerId      String?
+  invoiceId       String?
+  amount          Decimal  @db.Decimal(20, 2)
+  currency        String   @default("USD")
+  status          PaymentStatus @default(PENDING)
+  paymentMethod   PaymentMethod?
+  provider        String?
+  providerPaymentId String?
+  metadata        Json?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  tenant          Tenant @relation(fields: [tenantId], references: [id])
+  customer        Customer? @relation(fields: [customerId], references: [id])
+  invoice         Invoice? @relation(fields: [invoiceId], references: [id])
+
+  @@index([tenantId])
+  @@index([customerId])
+  @@map("payments")
+}
+
+enum PaymentStatus {
+  PENDING
+  PROCESSING
+  SUCCEEDED
+  FAILED
+  REFUNDED
+  CANCELLED
+}
+
+enum PaymentMethod {
+  CARD
+  BANK_TRANSFER
+  PAYPAL
+  CRYPTO
+  WIRE
+}
+
 model WalletTransaction {
   id          String   @id @default(uuid())
   walletId    String
-  type        TransactionType
+  type        WalletTransactionType
   amount      Decimal  @db.Decimal(20, 8)
   balanceBefore Decimal @db.Decimal(20, 8)
   balanceAfter  Decimal @db.Decimal(20, 8)
@@ -151,16 +355,10 @@ model WalletTransaction {
   @@map("wallet_transactions")
 }
 
-enum TransactionType {
-  CREDIT
-  DEBIT
-  REFUND
-  ADJUSTMENT
-}
-
 model UsageEvent {
   id          String   @id @default(uuid())
   projectId   String
+  customerId  String?
   eventName   String
   properties  Json
   quantity    Decimal  @db.Decimal(20, 8)
@@ -171,8 +369,10 @@ model UsageEvent {
   createdAt   DateTime @default(now())
 
   project     Project @relation(fields: [projectId], references: [id])
+  customer    Customer? @relation(fields: [customerId], references: [id])
 
   @@index([projectId, timestamp])
+  @@index([customerId])
   @@map("usage_events")
 }
 
@@ -182,12 +382,19 @@ model LedgerAccount {
   code        String
   name        String
   type        AccountType
+  scope       LedgerScope @default(TENANT)
   createdAt   DateTime @default(now())
 
   entries     LedgerEntry[]
 
   @@unique([tenantId, code])
   @@map("ledger_accounts")
+}
+
+enum LedgerScope {
+  CUSTOMER
+  TENANT
+  PLATFORM
 }
 
 enum AccountType {
@@ -253,6 +460,8 @@ enum PlanStatus {
 model PricingRule {
   id              String   @id @default(uuid())
   planId          String
+  productId       String?
+  projectId       String?
   eventName       String
   metric          String
   pricingType     PricingType
@@ -265,6 +474,8 @@ model PricingRule {
   updatedAt       DateTime @updatedAt
 
   plan            PricingPlan @relation(fields: [planId], references: [id], onDelete: Cascade)
+  product         Product? @relation(fields: [productId], references: [id])
+  project         Project? @relation(fields: [projectId], references: [id])
 
   @@map("pricing_rules")
 }
@@ -279,6 +490,7 @@ enum PricingType {
 model Invoice {
   id              String   @id @default(uuid())
   tenantId        String
+  customerId      String?
   invoiceNumber   String   @unique
   status          InvoiceStatus @default(DRAFT)
   periodStart     DateTime
@@ -293,9 +505,13 @@ model Invoice {
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 
+  tenant          Tenant @relation(fields: [tenantId], references: [id])
+  customer        Customer? @relation(fields: [customerId], references: [id])
   lineItems       InvoiceLineItem[]
+  payments        Payment[]
 
   @@index([tenantId, status])
+  @@index([customerId])
   @@map("invoices")
 }
 
