@@ -5,7 +5,7 @@ declare const UsageEventSchema: z.ZodObject<{
     quantity: z.ZodNumber;
     unit: z.ZodString;
     timestamp: z.ZodUnion<[z.ZodString, z.ZodDate]>;
-    idempotencyKey: z.ZodOptional<z.ZodString>;
+    idempotencyKey: z.ZodEffects<z.ZodOptional<z.ZodString>, string | undefined, unknown>;
     /** Required when the API key is not scoped to a project */
     projectId: z.ZodOptional<z.ZodString>;
     /** When set, matches pricing rules scoped to this product */
@@ -25,7 +25,7 @@ declare const UsageEventSchema: z.ZodObject<{
     unit: string;
     timestamp: string | Date;
     properties?: Record<string, unknown> | undefined;
-    idempotencyKey?: string | undefined;
+    idempotencyKey?: unknown;
     projectId?: string | undefined;
     productId?: string | undefined;
 }>;

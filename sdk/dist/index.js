@@ -10,7 +10,14 @@ const UsageEventSchema = zod_1.z.object({
     quantity: zod_1.z.number().positive(),
     unit: zod_1.z.string().min(1),
     timestamp: zod_1.z.string().datetime().or(zod_1.z.date()),
-    idempotencyKey: zod_1.z.string().optional(),
+    idempotencyKey: zod_1.z.preprocess((v) => {
+        if (v == null)
+            return undefined;
+        if (typeof v !== "string")
+            return v;
+        const t = v.trim();
+        return t === "" ? undefined : t;
+    }, zod_1.z.string().min(1).optional()),
     /** Required when the API key is not scoped to a project */
     projectId: zod_1.z.string().uuid().optional(),
     /** When set, matches pricing rules scoped to this product */

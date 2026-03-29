@@ -367,6 +367,8 @@ model UsageEvent {
   idempotencyKey String? @unique
   processedAt DateTime?
   createdAt   DateTime @default(now())
+  ratedCost   Decimal? @db.Decimal(20, 8)
+  appliedRuleId String?
 
   project     Project @relation(fields: [projectId], references: [id])
   customer    Customer? @relation(fields: [customerId], references: [id])

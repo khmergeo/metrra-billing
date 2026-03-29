@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { NextRequest } from "next/server";
 import { withAuth } from "@/lib/middleware";
+
+export const dynamic = "force-dynamic";
 import { getWalletBalance, deductWallet, creditWallet } from "@/services/wallet.service";
 
 export async function GET(

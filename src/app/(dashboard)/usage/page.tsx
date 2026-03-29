@@ -6,12 +6,14 @@ import { formatDateTime } from "@/lib/utils";
 
 interface UsageEvent {
   id: string;
+  projectName?: string;
   eventName: string;
   properties: Record<string, unknown>;
   quantity: string;
   unit: string;
   timestamp: string;
   createdAt: string;
+  ratedCost?: string | null;
 }
 
 export default function UsagePage() {
@@ -24,7 +26,7 @@ export default function UsagePage() {
 
   async function fetchUsage() {
     try {
-      const res = await fetch("/api/usage/events");
+      const res = await fetch("/api/usage/events", { cache: "no-store" });
       const data = await res.json();
       setEvents(data.events || []);
     } catch (error) {
@@ -38,16 +40,23 @@ export default function UsagePage() {
     totalEvents: events.length,
     totalQuantity: events.reduce((sum, e) => sum + parseFloat(e.quantity), 0),
     uniqueEvents: new Set(events.map((e) => e.eventName)).size,
+    totalCost: events.reduce(
+      (sum, e) => sum + (e.ratedCost != null ? parseFloat(e.ratedCost) : 0),
+      0
+    ),
   };
 
   return (
     <div className="space-y-8 animate-fade-in">
       <div>
         <h1 className="text-2xl font-bold">Usage Analytics</h1>
-        <p className="text-slate-400 mt-1">Track your usage events and metrics</p>
+        <p className="text-slate-400 mt-1">
+          Events ingested via API key are listed here. When a rule matches, cost is stored and your tenant wallet is
+          debited in the same step.
+        </p>
       </div>
 
-      <div className="grid sm:grid-cols-3 gap-4">
+      <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <div className="glass-card p-6">
           <div className="flex items-center gap-3 mb-2">
             <Activity className="w-5 h-5 text-primary" />
@@ -69,11 +78,21 @@ export default function UsagePage() {
           </div>
           <p className="text-2xl font-bold">{stats.uniqueEvents}</p>
         </div>
+        <div className="glass-card p-6">
+          <div className="flex items-center gap-3 mb-2">
+            <Clock className="w-5 h-5 text-amber-400" />
+            <span className="text-slate-400">Wallet debits (sum)</span>
+          </div>
+          <p className="text-2xl font-bold">${stats.totalCost.toFixed(4)}</p>
+        </div>
       </div>
 
       <div className="glass-card overflow-hidden">
-        <div className="p-4 border-b border-white/10">
+        <div className="p-4 border-b border-white/10 flex items-center justify-between gap-4">
           <h2 className="font-semibold">Usage Events</h2>
+          <button type="button" onClick={() => fetchUsage()} className="btn-secondary text-sm">
+            Refresh
+          </button>
         </div>
 
         {isLoading ? (
@@ -89,18 +108,24 @@ export default function UsagePage() {
             <table className="w-full">
               <thead className="bg-slate-900/50">
                 <tr className="text-left text-sm text-slate-400">
+                  <th className="px-4 py-3 font-medium">Project</th>
                   <th className="px-4 py-3 font-medium">Event</th>
-                  <th className="px-4 py-3 font-medium">Quantity</th>
+                  <th className="px-4 py-3 font-medium">Qty</th>
                   <th className="px-4 py-3 font-medium">Unit</th>
-                  <th className="px-4 py-3 font-medium">Timestamp</th>
+                  <th className="px-4 py-3 font-medium">Cost</th>
+                  <th className="px-4 py-3 font-medium">Time</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-white/10">
                 {events.slice(0, 50).map((event) => (
                   <tr key={event.id} className="hover:bg-white/5 transition-colors">
+                    <td className="px-4 py-4 text-slate-300">{event.projectName ?? "—"}</td>
                     <td className="px-4 py-4 font-medium">{event.eventName}</td>
                     <td className="px-4 py-4">{parseFloat(event.quantity).toFixed(4)}</td>
                     <td className="px-4 py-4 text-slate-400">{event.unit}</td>
+                    <td className="px-4 py-4 text-slate-300">
+                      {event.ratedCost != null ? `$${parseFloat(event.ratedCost).toFixed(6)}` : "—"}
+                    </td>
                     <td className="px-4 py-4 text-slate-400">
                       {formatDateTime(event.timestamp)}
                     </td>
@@ -143,8 +168,9 @@ const { eventId, estimatedCost, pricingRuleId } = await meterra.recordUsage({
         </div>
         <p className="text-slate-500 text-xs mt-3">
           Response includes <code className="text-slate-400">estimatedCost</code> and{" "}
-          <code className="text-slate-400">pricingRuleId</code> (or <code className="text-slate-400">null</code> if no
-          rule matched).
+          <code className="text-slate-400">pricingRuleId</code>. If cost is greater than zero, the tenant wallet is
+          debited in the same request; <strong className="text-slate-400">402</strong> means insufficient balance (no
+          event stored).
         </p>
       </div>
     </div>

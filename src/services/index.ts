@@ -1,6 +1,11 @@
 export { createTenant, getTenantBySlug } from "./tenant.service";
 export { authenticateUser } from "./auth.service";
-export { deductWallet, creditWallet, getWalletBalance } from "./wallet.service";
+export {
+  deductWallet,
+  deductWalletTx,
+  creditWallet,
+  getWalletBalance,
+} from "./wallet.service";
 export { recordLedgerEntry, getLedgerBalance, getLedgerTrialBalance } from "./ledger.service";
 export {
   calculateCost,

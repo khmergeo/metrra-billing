@@ -1,6 +1,8 @@
 import prisma from "@/lib/db";
 import { Decimal } from "@prisma/client/runtime/library";
-import type { PricingRule, PricingType } from "@prisma/client";
+import type { Prisma, PricingRule, PricingType } from "@prisma/client";
+
+type RatingDb = Prisma.TransactionClient | typeof prisma;
 
 interface Tier {
   upTo: number;
@@ -65,9 +67,10 @@ export async function rateUsage(
   tenantId: string,
   eventName: string,
   quantity: number,
-  ctx?: UsageRatingContext
+  ctx?: UsageRatingContext,
+  db: RatingDb = prisma
 ): Promise<{ cost: number; pricingRuleId: string | null }> {
-  const rules = await prisma.pricingRule.findMany({
+  const rules = await db.pricingRule.findMany({
     where: {
       plan: {
         tenantId,

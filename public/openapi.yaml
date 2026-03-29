@@ -437,11 +437,30 @@ paths:
           description: Customer or plan not found
 
   /api/usage/events:
+    get:
+      tags: [Usage]
+      summary: List usage events (dashboard)
+      description: Session cookie `auth-token`. Returns recent events for all projects in the tenant, including rated cost.
+      security:
+        - TenantSession: []
+      responses:
+        "200":
+          description: Events
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  events:
+                    type: array
+                    items:
+                      type: object
     post:
       tags: [Usage]
       summary: Record usage event
       description: |
         Requires `X-API-Key`. Project is taken from the key unless `projectId` is sent in the body (tenant-wide keys).
+        If estimated cost is greater than zero, the tenant wallet is debited in the same transaction; otherwise no wallet movement.
       security:
         - ApiKeyAuth: []
       requestBody:
@@ -476,6 +495,8 @@ paths:
           description: Invalid API key
         "404":
           description: Project or product not found
+        "402":
+          description: Insufficient wallet balance (event not stored)
 
   /api/wallets:
     get:

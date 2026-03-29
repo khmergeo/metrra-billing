@@ -10,6 +10,7 @@ interface DashboardData {
     currency: string;
   } | null;
   usageCount: number;
+  totalRatedSpend: string;
   projectsCount: number;
 }
 
@@ -17,6 +18,7 @@ export default function DashboardPage() {
   const [data, setData] = useState<DashboardData>({
     wallet: null,
     usageCount: 0,
+    totalRatedSpend: "0",
     projectsCount: 0,
   });
   const [isLoading, setIsLoading] = useState(true);
@@ -24,18 +26,28 @@ export default function DashboardPage() {
   useEffect(() => {
     async function fetchDashboard() {
       try {
-        const [walletRes, projectsRes] = await Promise.all([
-          fetch("/api/wallets"),
-          fetch("/api/projects"),
+        const fetchOpts = { cache: "no-store" } as RequestInit;
+        const [walletRes, projectsRes, usageRes] = await Promise.all([
+          fetch("/api/wallets", fetchOpts),
+          fetch("/api/projects", fetchOpts),
+          fetch("/api/usage/events", fetchOpts),
         ]);
 
         const walletData = await walletRes.json();
         const projectsData = await projectsRes.json();
+        const usageData = await usageRes.json();
 
         setData({
           wallet: walletData.wallet,
           projectsCount: projectsData.projects?.length || 0,
-          usageCount: 0,
+          usageCount:
+            typeof usageData.total === "number"
+              ? usageData.total
+              : usageData.events?.length ?? 0,
+          totalRatedSpend:
+            typeof usageData.totalRatedSpend === "string"
+              ? usageData.totalRatedSpend
+              : "0",
         });
       } catch (error) {
         console.error("Dashboard fetch error:", error);
@@ -47,12 +59,25 @@ export default function DashboardPage() {
     fetchDashboard();
   }, []);
 
-  const stats = [
+  const stats: Array<{
+    name: string;
+    value: string | number;
+    subtext?: string;
+    icon: typeof Wallet;
+    color: string;
+    bgColor: string;
+  }> = [
     {
       name: "Wallet Balance",
       value: data.wallet?.balance
         ? formatCurrency(parseFloat(data.wallet.balance), data.wallet.currency)
         : "$0.00",
+      subtext:
+        parseFloat(data.totalRatedSpend) > 0
+          ? `${formatCurrency(parseFloat(data.totalRatedSpend), data.wallet?.currency || "USD")} billed from usage (lifetime)`
+          : data.usageCount > 0
+            ? `${data.usageCount} event(s) recorded; $0 rated — use an ACTIVE plan and matching eventName to debit wallet`
+            : "Wallet debits when usage matches an ACTIVE pricing rule (cost > 0)",
       icon: Wallet,
       color: "text-green-400",
       bgColor: "bg-green-500/20",
@@ -67,6 +92,7 @@ export default function DashboardPage() {
     {
       name: "Usage Events",
       value: data.usageCount.toLocaleString(),
+      subtext: "All time (tenant)",
       icon: TrendingUp,
       color: "text-primary",
       bgColor: "bg-primary/20",
@@ -99,6 +125,9 @@ export default function DashboardPage() {
             <p className={`text-2xl font-semibold mt-1 ${isLoading ? "animate-pulse" : ""}`}>
               {stat.value}
             </p>
+            {stat.subtext && (
+              <p className="text-xs text-slate-500 mt-2 leading-relaxed">{stat.subtext}</p>
+            )}
           </div>
         ))}
       </div>

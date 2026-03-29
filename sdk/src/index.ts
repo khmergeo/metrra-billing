@@ -6,7 +6,15 @@ const UsageEventSchema = z.object({
   quantity: z.number().positive(),
   unit: z.string().min(1),
   timestamp: z.string().datetime().or(z.date()),
-  idempotencyKey: z.string().optional(),
+  idempotencyKey: z.preprocess(
+    (v) => {
+      if (v == null) return undefined;
+      if (typeof v !== "string") return v;
+      const t = v.trim();
+      return t === "" ? undefined : t;
+    },
+    z.string().min(1).optional()
+  ),
   /** Required when the API key is not scoped to a project */
   projectId: z.string().uuid().optional(),
   /** When set, matches pricing rules scoped to this product */

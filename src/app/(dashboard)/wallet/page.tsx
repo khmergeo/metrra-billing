@@ -32,7 +32,7 @@ export default function WalletPage() {
 
   async function fetchWallet() {
     try {
-      const res = await fetch("/api/wallets");
+      const res = await fetch("/api/wallets", { cache: "no-store" });
       const data = await res.json();
       setWallet(data.wallet);
     } catch (error) {

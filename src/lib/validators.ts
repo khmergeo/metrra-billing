@@ -44,7 +44,15 @@ export const UsageEventSchema = z.object({
   quantity: z.number().positive(),
   unit: z.string().min(1),
   timestamp: z.string().datetime(),
-  idempotencyKey: z.string().optional(),
+  idempotencyKey: z.preprocess(
+    (v) => {
+      if (v == null) return undefined;
+      if (typeof v !== "string") return v;
+      const t = v.trim();
+      return t === "" ? undefined : t;
+    },
+    z.string().min(1).optional()
+  ),
   projectId: z.string().uuid().optional(),
   productId: z.string().uuid().optional(),
 });

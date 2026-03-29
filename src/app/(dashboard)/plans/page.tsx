@@ -7,7 +7,6 @@ import {
   Search,
   Eye,
   X,
-  Trash2,
 } from "lucide-react";
 
 interface PricingRule {
@@ -20,6 +19,8 @@ interface PricingRule {
   productId: string | null;
   projectId: string | null;
 }
+
+type PlanStatus = "DRAFT" | "ACTIVE" | "ARCHIVED";
 
 interface PricingPlan {
   id: string;
@@ -62,7 +63,8 @@ export default function PlansPage() {
     flatRate: "",
   });
   const [isCreating, setIsCreating] = useState(false);
-  const [isActivatingPlan, setIsActivatingPlan] = useState(false);
+  const [updatingPlanId, setUpdatingPlanId] = useState<string | null>(null);
+  const [statusError, setStatusError] = useState("");
   const [createError, setCreateError] = useState("");
 
   useEffect(() => {
@@ -119,26 +121,34 @@ export default function PlansPage() {
     }
   }
 
-  async function handleActivatePlan() {
-    if (!selectedPlan) return;
-    setIsActivatingPlan(true);
+  async function updatePlanStatus(planId: string, status: PlanStatus) {
+    setUpdatingPlanId(planId);
+    setStatusError("");
     try {
-      const res = await fetch(`/api/pricing/${selectedPlan.id}`, {
+      const res = await fetch(`/api/pricing/${planId}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ status: "ACTIVE" }),
+        body: JSON.stringify({ status }),
       });
-      if (res.ok) {
-        await fetchData();
-        const updatedRes = await fetch(`/api/pricing`);
-        const updatedData = await updatedRes.json();
-        const updated = updatedData.plans?.find((p: PricingPlan) => p.id === selectedPlan.id);
-        if (updated) setSelectedPlan(updated);
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setStatusError(
+          typeof data.error === "string" ? data.error : "Failed to update plan status"
+        );
+        return;
+      }
+      await fetchData();
+      const updatedRes = await fetch(`/api/pricing`);
+      const updatedData = await updatedRes.json();
+      const updated = updatedData.plans?.find((p: PricingPlan) => p.id === planId);
+      if (updated && selectedPlan?.id === planId) {
+        setSelectedPlan(updated);
       }
     } catch (error) {
-      console.error("Activate plan error:", error);
+      console.error("Update plan status error:", error);
+      setStatusError("Failed to update plan status");
     } finally {
-      setIsActivatingPlan(false);
+      setUpdatingPlanId(null);
     }
   }
 
@@ -266,15 +276,24 @@ export default function PlansPage() {
                       </div>
                     </td>
                     <td className="px-4 py-4">
-                      <span className={`px-2 py-1 text-xs rounded-full ${
-                        plan.status === "ACTIVE"
-                          ? "bg-green-500/20 text-green-400"
-                          : plan.status === "DRAFT"
-                          ? "bg-yellow-500/20 text-yellow-400"
-                          : "bg-slate-500/20 text-slate-400"
-                      }`}>
-                        {plan.status}
-                      </span>
+                      <select
+                        value={
+                          ["DRAFT", "ACTIVE", "ARCHIVED"].includes(plan.status)
+                            ? plan.status
+                            : "DRAFT"
+                        }
+                        disabled={updatingPlanId === plan.id}
+                        onChange={(e) =>
+                          updatePlanStatus(plan.id, e.target.value as PlanStatus)
+                        }
+                        onClick={(e) => e.stopPropagation()}
+                        className="input-field text-sm py-2 min-w-[9.5rem] cursor-pointer"
+                        aria-label={`Change status for ${plan.name}`}
+                      >
+                        <option value="DRAFT">DRAFT</option>
+                        <option value="ACTIVE">ACTIVE</option>
+                        <option value="ARCHIVED">ARCHIVED</option>
+                      </select>
                     </td>
                     <td className="px-4 py-4 text-slate-400">{plan.rules.length}</td>
                     <td className="px-4 py-4 text-slate-400 text-sm">
@@ -282,9 +301,12 @@ export default function PlansPage() {
                     </td>
                     <td className="px-4 py-4">
                       <button
+                        type="button"
+                        title="View plan & rules"
                         onClick={() => {
                           setSelectedPlan(plan);
                           setShowAddRule(false);
+                          setStatusError("");
                         }}
                         className="p-1 text-slate-400 hover:text-foreground cursor-pointer"
                       >
@@ -313,30 +335,38 @@ export default function PlansPage() {
             </div>
 
             <div className="space-y-4 mb-6">
+              {statusError && (
+                <div className="p-3 bg-red-500/20 border border-red-500/50 rounded-lg text-red-400 text-sm">
+                  {statusError}
+                </div>
+              )}
               <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <p className="text-sm text-slate-400">Status</p>
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <p className="font-medium">{selectedPlan.status}</p>
-                    {selectedPlan.status !== "ACTIVE" && (
-                      <button
-                        type="button"
-                        onClick={handleActivatePlan}
-                        disabled={isActivatingPlan}
-                        className="btn-primary text-xs py-1 px-2"
-                      >
-                        {isActivatingPlan ? "…" : "Set ACTIVE"}
-                      </button>
-                    )}
-                  </div>
+                <div className="col-span-2 sm:col-span-1">
+                  <label className="block text-sm text-slate-400 mb-1">Plan status</label>
+                  <select
+                    value={
+                      ["DRAFT", "ACTIVE", "ARCHIVED"].includes(selectedPlan.status)
+                        ? selectedPlan.status
+                        : "DRAFT"
+                    }
+                    disabled={updatingPlanId === selectedPlan.id}
+                    onChange={(e) =>
+                      updatePlanStatus(selectedPlan.id, e.target.value as PlanStatus)
+                    }
+                    className="input-field w-full cursor-pointer"
+                  >
+                    <option value="DRAFT">DRAFT — not used for usage</option>
+                    <option value="ACTIVE">ACTIVE — used for usage rating</option>
+                    <option value="ARCHIVED">ARCHIVED — retired</option>
+                  </select>
                   {selectedPlan.status !== "ACTIVE" && (
-                    <p className="text-xs text-amber-400/90 mt-1">
-                      Usage events ignore this plan until it is ACTIVE.
+                    <p className="text-xs text-amber-400/90 mt-1.5">
+                      Usage events only match rules on ACTIVE plans.
                     </p>
                   )}
                 </div>
                 <div>
-                  <p className="text-sm text-slate-400">Pricing Rules</p>
+                  <p className="text-sm text-slate-400">Pricing rules</p>
                   <p className="font-medium">{selectedPlan.rules.length}</p>
                 </div>
               </div>
