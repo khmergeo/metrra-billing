@@ -7,6 +7,8 @@ import {
   Zap,
   LayoutDashboard,
   FolderKanban,
+  Users,
+  Package,
   CreditCard,
   Receipt,
   BarChart3,
@@ -16,6 +18,7 @@ import {
   X,
   Shield,
   Activity,
+  BookOpen,
 } from "lucide-react";
 
 interface User {
@@ -33,11 +36,14 @@ interface User {
 const navigation = [
   { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
   { name: "Projects", href: "/projects", icon: FolderKanban },
+  { name: "Products", href: "/products", icon: Package },
+  { name: "Pricing Plans", href: "/plans", icon: CreditCard },
+  { name: "Customers", href: "/customers", icon: Users },
   { name: "Usage", href: "/usage", icon: Activity },
   { name: "Wallet", href: "/wallet", icon: CreditCard },
   { name: "Invoices", href: "/invoices", icon: Receipt },
-  { name: "Ledger", href: "/ledger", icon: BarChart3 },
   { name: "Settings", href: "/settings", icon: Settings },
+  { name: "API docs", href: "/docs", icon: BookOpen },
 ];
 
 export default function DashboardLayout({

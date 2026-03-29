@@ -1,0 +1,738 @@
+openapi: 3.0.3
+info:
+  title: Meterra Billing API
+  description: |
+    Tenant dashboard routes use session cookies (`auth-token`) after `POST /api/auth/login`.
+    Admin routes use `admin_token` after `POST /api/admin/auth/login`.
+
+    **Usage ingestion** uses the `X-API-Key` header (and optional project on the key or `projectId` in the body).
+
+    Download this spec: [`/openapi.yaml`](/openapi.yaml)
+  version: 1.0.0
+
+servers:
+  - url: /
+    description: Current host (same origin)
+
+tags:
+  - name: Auth
+  - name: Projects
+  - name: Products
+  - name: Pricing
+  - name: API Keys
+  - name: Customers
+  - name: Subscriptions
+  - name: Usage
+  - name: Wallet
+  - name: Invoices
+  - name: Admin
+
+security:
+  - TenantSession: []
+
+paths:
+  /api/auth/login:
+    post:
+      tags: [Auth]
+      summary: Tenant user login
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, password]
+              properties:
+                email:
+                  type: string
+                  format: email
+                password:
+                  type: string
+                tenantSlug:
+                  type: string
+      responses:
+        "200":
+          description: Sets httpOnly cookie `auth-token`
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  user:
+                    type: object
+        "401":
+          description: Invalid credentials
+
+  /api/auth/session:
+    get:
+      tags: [Auth]
+      summary: Current session
+      security:
+        - TenantSession: []
+      responses:
+        "200":
+          description: Current user or empty
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  user:
+                    type: object
+                    nullable: true
+
+  /api/projects:
+    get:
+      tags: [Projects]
+      summary: List projects
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  projects:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/Project"
+    post:
+      tags: [Projects]
+      summary: Create project
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name]
+              properties:
+                name:
+                  type: string
+                description:
+                  type: string
+      responses:
+        "200":
+          description: Created
+
+  /api/products:
+    get:
+      tags: [Products]
+      summary: List products
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  products:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/Product"
+    post:
+      tags: [Products]
+      summary: Create product
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name]
+              properties:
+                name:
+                  type: string
+                description:
+                  type: string
+                unit:
+                  type: string
+                  default: unit
+      responses:
+        "200":
+          description: Created
+        "400":
+          description: Duplicate name
+
+  /api/pricing:
+    get:
+      tags: [Pricing]
+      summary: List pricing plans with rules
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  plans:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/PricingPlan"
+    post:
+      tags: [Pricing]
+      summary: Create pricing plan
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PricingPlanCreate"
+      responses:
+        "200":
+          description: Created
+
+  /api/pricing/{planId}/rules:
+    post:
+      tags: [Pricing]
+      summary: Add rule to plan
+      parameters:
+        - name: planId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PricingRuleCreate"
+      responses:
+        "200":
+          description: Rule created
+        "404":
+          description: Plan not found
+
+  /api/api-keys:
+    get:
+      tags: [API Keys]
+      summary: List API keys (metadata only)
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  apiKeys:
+                    type: array
+                    items:
+                      type: object
+    post:
+      tags: [API Keys]
+      summary: Create API key
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name]
+              properties:
+                name:
+                  type: string
+                projectId:
+                  type: string
+                  format: uuid
+                expiresAt:
+                  type: string
+                  format: date-time
+      responses:
+        "200":
+          description: Returns full key once
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  apiKey:
+                    type: object
+                    properties:
+                      key:
+                        type: string
+    delete:
+      tags: [API Keys]
+      summary: Delete API key
+      parameters:
+        - name: id
+          in: query
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Deleted
+
+  /api/customers:
+    get:
+      tags: [Customers]
+      summary: List customers
+      parameters:
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 1
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 20
+        - name: search
+          in: query
+          schema:
+            type: string
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [ALL, ACTIVE, SUSPENDED, CHURNED]
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  customers:
+                    type: array
+                    items:
+                      type: object
+                  pagination:
+                    $ref: "#/components/schemas/Pagination"
+    post:
+      tags: [Customers]
+      summary: Create customer
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name, email]
+              properties:
+                name:
+                  type: string
+                email:
+                  type: string
+                  format: email
+                phone:
+                  type: string
+                billingType:
+                  type: string
+                  enum: [PREPAID, POSTPAID]
+                externalCustomerId:
+                  type: string
+                address:
+                  type: object
+                metadata:
+                  type: object
+      responses:
+        "201":
+          description: Created
+
+  /api/customers/{id}:
+    get:
+      tags: [Customers]
+      summary: Get customer
+      parameters:
+        - $ref: "#/components/parameters/CustomerId"
+      responses:
+        "200":
+          description: Customer with subscriptions and invoices
+        "404":
+          description: Not found
+    patch:
+      tags: [Customers]
+      summary: Update customer
+      parameters:
+        - $ref: "#/components/parameters/CustomerId"
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                email:
+                  type: string
+                status:
+                  type: string
+                  enum: [ACTIVE, SUSPENDED, CHURNED]
+                billingType:
+                  type: string
+                  enum: [PREPAID, POSTPAID]
+      responses:
+        "200":
+          description: Updated
+    delete:
+      tags: [Customers]
+      summary: Soft-delete (churn) customer
+      parameters:
+        - $ref: "#/components/parameters/CustomerId"
+      responses:
+        "200":
+          description: OK
+
+  /api/subscriptions:
+    get:
+      tags: [Subscriptions]
+      summary: List subscriptions
+      parameters:
+        - name: customerId
+          in: query
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  subscriptions:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/Subscription"
+    post:
+      tags: [Subscriptions]
+      summary: Create subscription
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [customerId, pricingPlanId, startDate]
+              properties:
+                customerId:
+                  type: string
+                  format: uuid
+                pricingPlanId:
+                  type: string
+                  format: uuid
+                billingCycle:
+                  type: string
+                  enum: [MONTHLY, YEARLY, QUARTERLY, PAY_AS_YOU_GO]
+                startDate:
+                  description: ISO date or datetime (e.g. from HTML date input)
+                  type: string
+                  example: "2026-03-29"
+                endDate:
+                  type: string
+                  format: date-time
+                metadata:
+                  type: object
+      responses:
+        "201":
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  subscription:
+                    $ref: "#/components/schemas/Subscription"
+        "404":
+          description: Customer or plan not found
+
+  /api/usage/events:
+    post:
+      tags: [Usage]
+      summary: Record usage event
+      description: |
+        Requires `X-API-Key`. Project is taken from the key unless `projectId` is sent in the body (tenant-wide keys).
+      security:
+        - ApiKeyAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UsageEventCreate"
+      responses:
+        "200":
+          description: Event stored and rated
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [success, eventId, estimatedCost, pricingRuleId]
+                properties:
+                  success:
+                    type: boolean
+                  eventId:
+                    type: string
+                    format: uuid
+                  estimatedCost:
+                    type: number
+                  pricingRuleId:
+                    type: string
+                    format: uuid
+                    nullable: true
+        "400":
+          description: Validation or missing projectId
+        "401":
+          description: Invalid API key
+        "404":
+          description: Project or product not found
+
+  /api/wallets:
+    get:
+      tags: [Wallet]
+      summary: Tenant wallet balance
+      responses:
+        "200":
+          description: Wallet
+
+  /api/invoices:
+    get:
+      tags: [Invoices]
+      summary: List invoices
+      responses:
+        "200":
+          description: Invoices
+
+  /api/admin/auth/login:
+    post:
+      tags: [Admin]
+      summary: Platform admin login
+      security: []
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, password]
+              properties:
+                email:
+                  type: string
+                  format: email
+                password:
+                  type: string
+      responses:
+        "200":
+          description: Sets cookie `admin_token`
+
+  /api/admin/stats:
+    get:
+      tags: [Admin]
+      summary: Platform stats
+      security:
+        - AdminSession: []
+      responses:
+        "200":
+          description: Stats
+
+components:
+  securitySchemes:
+    TenantSession:
+      type: apiKey
+      in: cookie
+      name: auth-token
+    AdminSession:
+      type: apiKey
+      in: cookie
+      name: admin_token
+    ApiKeyAuth:
+      type: apiKey
+      in: header
+      name: X-API-Key
+
+  parameters:
+    CustomerId:
+      name: id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+
+  schemas:
+    Project:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        tenantId:
+          type: string
+        name:
+          type: string
+        description:
+          type: string
+          nullable: true
+        status:
+          type: string
+
+    Product:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        unit:
+          type: string
+        status:
+          type: string
+
+    PricingPlan:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        status:
+          type: string
+        rules:
+          type: array
+          items:
+            $ref: "#/components/schemas/PricingRule"
+
+    PricingPlanCreate:
+      type: object
+      required: [name]
+      properties:
+        name:
+          type: string
+        description:
+          type: string
+        effectiveFrom:
+          type: string
+          format: date-time
+        effectiveTo:
+          type: string
+          format: date-time
+        rules:
+          type: array
+          items:
+            $ref: "#/components/schemas/PricingRuleCreate"
+
+    PricingRule:
+      type: object
+      properties:
+        id:
+          type: string
+        eventName:
+          type: string
+        metric:
+          type: string
+        pricingType:
+          type: string
+          enum: [FLAT, PER_UNIT, TIERED, VOLUME]
+        unitPrice:
+          type: string
+          nullable: true
+        flatRate:
+          type: string
+          nullable: true
+        productId:
+          type: string
+          nullable: true
+        projectId:
+          type: string
+          nullable: true
+
+    PricingRuleCreate:
+      type: object
+      required: [eventName, metric, pricingType]
+      properties:
+        eventName:
+          type: string
+        metric:
+          type: string
+        pricingType:
+          type: string
+          enum: [FLAT, PER_UNIT, TIERED, VOLUME]
+        flatRate:
+          type: number
+        unitPrice:
+          type: number
+        tiers:
+          type: array
+          items:
+            type: object
+            required: [upTo, price]
+            properties:
+              upTo:
+                type: number
+              price:
+                type: number
+        minQuantity:
+          type: number
+        maxQuantity:
+          type: number
+        productId:
+          type: string
+          format: uuid
+        projectId:
+          type: string
+          format: uuid
+
+    Subscription:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        customerId:
+          type: string
+        pricingPlanId:
+          type: string
+        status:
+          type: string
+        billingCycle:
+          type: string
+        startDate:
+          type: string
+          format: date-time
+        currentPeriodStart:
+          type: string
+          format: date-time
+        currentPeriodEnd:
+          type: string
+          format: date-time
+
+    UsageEventCreate:
+      type: object
+      required: [eventName, quantity, unit, timestamp]
+      properties:
+        eventName:
+          type: string
+        quantity:
+          type: number
+          exclusiveMinimum: 0
+        unit:
+          type: string
+        timestamp:
+          type: string
+          format: date-time
+        properties:
+          type: object
+          additionalProperties: true
+        idempotencyKey:
+          type: string
+        projectId:
+          type: string
+          format: uuid
+          description: Required when API key has no project scope
+        productId:
+          type: string
+          format: uuid
+          description: Optional; matches product-scoped pricing rules
+
+    Pagination:
+      type: object
+      properties:
+        page:
+          type: integer
+        limit:
+          type: integer
+        total:
+          type: integer
+        totalPages:
+          type: integer

@@ -59,7 +59,7 @@ export async function POST(
           description: data.description,
           effectiveFrom: data.effectiveFrom ? new Date(data.effectiveFrom) : null,
           effectiveTo: data.effectiveTo ? new Date(data.effectiveTo) : null,
-          status: "DRAFT",
+          status: "ACTIVE",
           rules: data.rules ? {
             create: data.rules,
           } : undefined,

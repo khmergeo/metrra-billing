@@ -45,6 +45,8 @@ export const UsageEventSchema = z.object({
   unit: z.string().min(1),
   timestamp: z.string().datetime(),
   idempotencyKey: z.string().optional(),
+  projectId: z.string().uuid().optional(),
+  productId: z.string().uuid().optional(),
 });
 
 export const PricingPlanSchema = z.object({

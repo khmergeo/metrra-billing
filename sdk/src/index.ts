@@ -7,9 +7,20 @@ const UsageEventSchema = z.object({
   unit: z.string().min(1),
   timestamp: z.string().datetime().or(z.date()),
   idempotencyKey: z.string().optional(),
+  /** Required when the API key is not scoped to a project */
+  projectId: z.string().uuid().optional(),
+  /** When set, matches pricing rules scoped to this product */
+  productId: z.string().uuid().optional(),
 });
 
 export type UsageEventInput = z.infer<typeof UsageEventSchema>;
+
+export interface RecordUsageResponse {
+  success: boolean;
+  eventId: string;
+  estimatedCost: number;
+  pricingRuleId: string | null;
+}
 
 export interface MeterraConfig {
   apiKey: string;
@@ -43,7 +54,7 @@ export class Meterra {
     this.timeout = config.timeout || 30000;
   }
 
-  async recordUsage(event: UsageEventInput): Promise<{ success: boolean; eventId?: string }> {
+  async recordUsage(event: UsageEventInput): Promise<RecordUsageResponse> {
     const parsed = UsageEventSchema.safeParse(event);
 
     if (!parsed.success) {
@@ -72,7 +83,7 @@ export class Meterra {
           "Content-Type": "application/json",
           "X-API-Key": this.apiKey,
           "X-SDK": "node",
-          "X-SDK-Version": "1.0.0",
+          "X-SDK-Version": "1.1.0",
         },
         body: JSON.stringify(payload),
         signal: controller.signal,
@@ -81,7 +92,9 @@ export class Meterra {
       clearTimeout(timeoutId);
 
       if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
+        const errorData = (await response.json().catch(() => ({}))) as {
+          error?: string;
+        };
         throw new MeterraError(
           errorData.error || "Failed to record usage",
           response.status,
@@ -89,7 +102,8 @@ export class Meterra {
         );
       }
 
-      return await response.json();
+      const body = (await response.json()) as RecordUsageResponse;
+      return body;
     } catch (error) {
       if (error instanceof MeterraError) {
         throw error;
@@ -107,15 +121,34 @@ export class Meterra {
     }
   }
 
-  async recordBatchUsage(
-    events: UsageEventInput[]
-  ): Promise<{ success: boolean; results: Array<{ eventId?: string; error?: string }> }> {
-    const results: Array<{ eventId?: string; error?: string }> = [];
+  async recordBatchUsage(events: UsageEventInput[]): Promise<{
+    success: boolean;
+    results: Array<
+      | {
+          eventId: string;
+          estimatedCost: number;
+          pricingRuleId: string | null;
+        }
+      | { error: string }
+    >;
+  }> {
+    const results: Array<
+      | {
+          eventId: string;
+          estimatedCost: number;
+          pricingRuleId: string | null;
+        }
+      | { error: string }
+    > = [];
 
     for (const event of events) {
       try {
         const result = await this.recordUsage(event);
-        results.push({ eventId: result.eventId });
+        results.push({
+          eventId: result.eventId,
+          estimatedCost: result.estimatedCost,
+          pricingRuleId: result.pricingRuleId,
+        });
       } catch (error) {
         results.push({
           error: error instanceof Error ? error.message : "Unknown error",

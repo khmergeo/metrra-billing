@@ -1,32 +1,46 @@
 import prisma from "@/lib/db";
 import { Decimal } from "@prisma/client/runtime/library";
-import type { PricingType } from "@prisma/client";
+import type { PricingRule, PricingType } from "@prisma/client";
 
 interface Tier {
   upTo: number;
   price: number;
 }
 
-export async function calculateCost(
-  tenantId: string,
-  eventName: string,
-  quantity: number
-): Promise<number> {
-  const rules = await prisma.pricingRule.findMany({
-    where: {
-      plan: {
-        tenantId,
-        status: "ACTIVE",
-      },
-      eventName,
-    },
+export type UsageRatingContext = {
+  projectId?: string | null;
+  productId?: string | null;
+};
+
+/** Rules with projectId / productId set only match when that id is provided and equal; null on the rule = wildcard. */
+export function selectPricingRuleForUsage(
+  rules: PricingRule[],
+  ctx: UsageRatingContext
+): PricingRule | null {
+  const filtered = rules.filter((r) => {
+    const projectOk =
+      r.projectId == null ||
+      (ctx.projectId != null && r.projectId === ctx.projectId);
+    const productOk =
+      r.productId == null ||
+      (ctx.productId != null && r.productId === ctx.productId);
+    return projectOk && productOk;
   });
 
-  if (rules.length === 0) {
-    return 0;
-  }
+  if (filtered.length === 0) return null;
 
-  const rule = rules[0];
+  filtered.sort((a, b) => {
+    const spec = (r: PricingRule) =>
+      (r.projectId ? 1 : 0) * 2 + (r.productId ? 1 : 0);
+    const d = spec(b) - spec(a);
+    if (d !== 0) return d;
+    return a.id.localeCompare(b.id);
+  });
+
+  return filtered[0];
+}
+
+function costForRule(rule: PricingRule, quantity: number): number {
   const qty = new Decimal(quantity);
 
   switch (rule.pricingType as PricingType) {
@@ -45,6 +59,43 @@ export async function calculateCost(
     default:
       return 0;
   }
+}
+
+export async function rateUsage(
+  tenantId: string,
+  eventName: string,
+  quantity: number,
+  ctx?: UsageRatingContext
+): Promise<{ cost: number; pricingRuleId: string | null }> {
+  const rules = await prisma.pricingRule.findMany({
+    where: {
+      plan: {
+        tenantId,
+        status: "ACTIVE",
+      },
+      eventName,
+    },
+  });
+
+  const rule = selectPricingRuleForUsage(rules, ctx ?? {});
+  if (!rule) {
+    return { cost: 0, pricingRuleId: null };
+  }
+
+  return {
+    cost: costForRule(rule, quantity),
+    pricingRuleId: rule.id,
+  };
+}
+
+export async function calculateCost(
+  tenantId: string,
+  eventName: string,
+  quantity: number,
+  ctx?: UsageRatingContext
+): Promise<number> {
+  const { cost } = await rateUsage(tenantId, eventName, quantity, ctx);
+  return cost;
 }
 
 function calculateTieredCost(quantity: Decimal, tiers: Tier[] | null): number {
@@ -90,7 +141,7 @@ export async function createPricingPlan(
       tenantId,
       name,
       description,
-      status: "DRAFT",
+      status: "ACTIVE",
     },
   });
 }
@@ -106,6 +157,8 @@ export async function addPricingRule(
     tiers?: Tier[];
     minQuantity?: number;
     maxQuantity?: number;
+    productId?: string | null;
+    projectId?: string | null;
   }
 ) {
   return prisma.pricingRule.create({
@@ -119,6 +172,8 @@ export async function addPricingRule(
       tiers: data.tiers ? JSON.parse(JSON.stringify(data.tiers)) : undefined,
       minQuantity: data.minQuantity,
       maxQuantity: data.maxQuantity,
+      productId: data.productId ?? null,
+      projectId: data.projectId ?? null,
     },
   });
 }

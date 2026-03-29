@@ -113,9 +113,11 @@ export default function UsagePage() {
       </div>
 
       <div className="glass-card p-6">
-        <h2 className="font-semibold mb-4">SDK Integration</h2>
+        <h2 className="font-semibold mb-4">SDK integration</h2>
         <p className="text-slate-400 text-sm mb-4">
-          To record usage events, integrate the Meterra SDK into your application:
+          Use the SDK with a project-scoped API key, or pass <code className="text-slate-300">projectId</code> when
+          the key is tenant-wide. Optional <code className="text-slate-300">productId</code> aligns with
+          product-scoped pricing rules.
         </p>
         <div className="bg-slate-900 rounded-lg p-4 font-mono text-sm overflow-x-auto">
           <code className="text-green-400">npm install @meterra/sdk</code>
@@ -124,14 +126,26 @@ export default function UsagePage() {
           <pre className="text-slate-300">
 {`import { meterra } from '@meterra/sdk';
 
-await meterra.recordUsage({
+meterra.init({
+  apiKey: process.env.METERRA_API_KEY!,
+  baseUrl: 'https://your-app.example.com', // origin that serves /api/usage/events
+});
+
+const { eventId, estimatedCost, pricingRuleId } = await meterra.recordUsage({
   eventName: 'api_call',
   quantity: 1,
   unit: 'request',
-  timestamp: new Date()
+  timestamp: new Date(),
+  // projectId: '…', // required if the API key is not scoped to a project
+  // productId: '…', // optional, for product-scoped pricing rules
 });`}
           </pre>
         </div>
+        <p className="text-slate-500 text-xs mt-3">
+          Response includes <code className="text-slate-400">estimatedCost</code> and{" "}
+          <code className="text-slate-400">pricingRuleId</code> (or <code className="text-slate-400">null</code> if no
+          rule matched).
+        </p>
       </div>
     </div>
   );
